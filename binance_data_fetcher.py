@@ -110,31 +110,84 @@ class BinanceFuturesDataFetcher:
             
         return pd.concat(all_data)
 
+    def fetch_multiple_symbols(self, symbols, interval, start_time, end_time):
+        """
+        Fetch historical data for multiple symbols
+        
+        Parameters:
+        -----------
+        symbols : list
+            List of trading pair symbols (e.g., ['BTCUSDT', 'ETHUSDT'])
+        interval : str
+            Kline interval. Options: 1m,3m,5m,15m,30m,1h,2h,4h,6h,8h,12h,1d,3d,1w,1M
+        start_time : str or datetime
+            Start time in 'YYYY-MM-DD HH:MM:SS' format or datetime object
+        end_time : str or datetime
+            End time in 'YYYY-MM-DD HH:MM:SS' format or datetime object
+            
+        Returns:
+        --------
+        dict
+            Dictionary with symbols as keys and DataFrames as values
+        """
+        results = {}
+        total_symbols = len(symbols)
+        
+        for i, symbol in enumerate(symbols, 1):
+            try:
+                print(f"\nFetching data for {symbol} ({i}/{total_symbols})")
+                df = self.fetch_historical_data(symbol, interval, start_time, end_time)
+                
+                if not df.empty:
+                    # Save to CSV
+                    output_filename = f"data/ohlcv/ohlcv_data_{interval}_{symbol}.csv"
+                    # Reset index to make timestamp a column and format it properly
+                    df_to_save = df.reset_index()
+                    # Rename columns to lowercase for consistency
+                    df_to_save.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                    df_to_save.to_csv(output_filename, index=False)
+                    print(f"Data saved to {output_filename}")
+                    print(f"Shape of data: {df.shape}")
+                    
+                    results[symbol] = df
+                else:
+                    print(f"No data found for {symbol}")
+                
+            except Exception as e:
+                print(f"Error fetching data for {symbol}: {e}")
+                continue
+            
+            # Respect rate limits between symbols
+            if i < total_symbols:
+                time.sleep(1)
+        
+        return results
+
 # Example usage
 if __name__ == "__main__":
     fetcher = BinanceFuturesDataFetcher()
     
     # Example parameters
-    symbol = "AUCTIONUSDT"
+    symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]  # Add your symbols here
     interval = "1h"
-    start_time = "2021-01-01 00:00:00"
+    start_time = "2025-01-01 00:00:00"
     end_time = datetime.now()
     
     try:
-        # Fetch data
-        df = fetcher.fetch_historical_data(symbol, interval, start_time, end_time)
+        # Create data directory if it doesn't exist
+        from pathlib import Path
+        Path("data/ohlcv").mkdir(parents=True, exist_ok=True)
         
-        # Save to CSV
-        output_filename = f"ohlcv_data_{interval}_{symbol}.csv"
-        # Reset index to make timestamp a column and format it properly
-        df_to_save = df.reset_index()
-        # Rename columns to lowercase for consistency
-        df_to_save.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-        df_to_save.to_csv(output_filename, index=False)
-        print(f"Data saved to {output_filename}")
-        print(f"Shape of data: {df.shape}")
-        print("\nFirst few rows:")
-        print(df.head())
+        # Fetch data for all symbols
+        results = fetcher.fetch_multiple_symbols(symbols, interval, start_time, end_time)
+        
+        # Print summary
+        print("\nSummary:")
+        for symbol, df in results.items():
+            print(f"\n{symbol}:")
+            print(f"Shape: {df.shape}")
+            print("First timestamp:", df.index[0])
+            print("Last timestamp:", df.index[-1])
         
     except Exception as e:
         print(f"Error: {e}") 
