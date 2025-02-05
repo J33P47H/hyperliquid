@@ -1,0 +1,54 @@
+{
+    "strategies": {
+        "Ichimoku": {
+            "enabled": false,
+            "optimize": true
+        },
+        "RSIDivergence": {
+            "enabled": false,
+            "optimize": true
+        },
+        "Bollinger": {
+            "enabled": false,
+            "optimize": true
+        },
+        "VWAP": {
+            "enabled": false,
+            "optimize": true
+        },
+        "RsiVwap": {
+            "enabled": false,
+            "optimize": true
+        },
+        "StoicReversal": {
+            "enabled": false,
+            "optimize": true
+        },
+        "AdaptiveStochasticReversal": {
+            "enabled": false,
+            "optimize": true
+        },
+        "AtrReversion": {
+            "enabled": false,
+            "optimize": true
+        },
+        "DynamicRetest": {
+            "enabled": true,
+            "optimize": true
+        },
+        "EmaVolumeSync": {
+            "enabled": false,
+            "optimize": true
+        }
+    },
+    "data_sources": {
+        "SOL_1h": "data/ohlcv/ohlcv_data_1h_SOLUSDT.csv"
+    },
+    "backtest_settings": {
+        "initial_capital": 1000000,
+        "commission": 0.001,
+        "plot_results": false,
+        "optimization_metric": "Equity Final [$]",
+        "max_combinations": 100
+    }
+}

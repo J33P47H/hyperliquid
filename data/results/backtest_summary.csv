@@ -1,0 +1,34 @@
+,DynamicRetest_SOL_1h_20250205_181820
+Start,2020-12-31 21:00:00
+End,2025-02-05 10:00:00
+Duration,1496 days 13:00:00
+Exposure Time [%],64.53310317946433
+Equity Final [$],1441323.3762237623
+Equity Peak [$],1565475.2091229626
+Commissions [$],1441.3233762237624
+Return [%],44.13233762237623
+Buy & Hold Return [%],13407.265521796564
+Return (Ann.) [%],9.315948176177935
+Volatility (Ann.) [%],17.038747797355043
+CAGR [%],9.325436993959514
+Sharpe Ratio,0.5467507522838073
+Sortino Ratio,0.9190357434367075
+Calmar Ratio,0.47735488882312127
+Max. Drawdown [%],-19.515769911031246
+Avg. Drawdown [%],-1.6582090765211104
+Max. Drawdown Duration,693 days 07:00:00
+Avg. Drawdown Duration,13 days 10:00:00
+# Trades,96
+Win Rate [%],35.41666666666667
+Best Trade [%],92.08007999780823
+Worst Trade [%],-38.89133247089263
+Avg. Trade [%],0.392066430938498
+Max. Trade Duration,247 days 05:00:00
+Avg. Trade Duration,10 days 01:00:00
+Profit Factor,1.3348164671225597
+Expectancy [%],2.6261220004229995
+SQN,1.188624128505137
+Kelly Criterion,0.08323632455876967
+param_risk_reward,25
+param_risk_percent,2
+param_consolidation_span,5
