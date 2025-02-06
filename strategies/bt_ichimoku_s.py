@@ -21,10 +21,6 @@ class IchimokuStrategy(Strategy):
         "displacement": {
             "default": 26,
             "range": [22, 26, 30]
-        },
-        "risk_factor": {
-            "default": 0.02,
-            "range": [0.01, 0.02, 0.03]
         }
     }
     
@@ -33,7 +29,6 @@ class IchimokuStrategy(Strategy):
     kijun_period = param_config["kijun_period"]["default"]
     senkou_span_b_period = param_config["senkou_span_b_period"]["default"]
     displacement = param_config["displacement"]["default"]
-    risk_factor = param_config["risk_factor"]["default"]
 
     def init(self):
         # Set instance parameters from class parameters or defaults
@@ -41,7 +36,6 @@ class IchimokuStrategy(Strategy):
         self.kijun_period = getattr(self, 'kijun_period', 26)
         self.senkou_span_b_period = getattr(self, 'senkou_span_b_period', 52)
         self.displacement = getattr(self, 'displacement', 26)
-        self.risk_factor = getattr(self, 'risk_factor', 0.02)
 
         # Calculate Ichimoku components
         def calculate_ichimoku_line(high, low, period):
@@ -69,20 +63,13 @@ class IchimokuStrategy(Strategy):
         if len(self.data) < required_bars:
             return
             
-        # Calculate position size (risk_factor of equity divided by current price)
-        current_price = self.data.Close[-1]
-        risk_amount = self.equity * self.risk_factor
-        position_size = risk_amount / current_price
-        # Round to whole number of units and ensure minimum size
-        position_size = max(1, round(position_size))
-            
         # Conditions for a long trade
         if (self.data.Close[-1] > self.senkou_span_a[-1] and 
             self.data.Close[-1] > self.senkou_span_b[-1] and
             crossover(self.tenkan_sen, self.kijun_sen) and
             len(self.data) > self.displacement and
             self.data.Close[-self.displacement] < self.chikou_span[-1]):
-            self.buy(size=position_size)
+            self.buy()
             
         # Conditions for closing a long trade
         elif (self.position.is_long and 
@@ -97,7 +84,7 @@ class IchimokuStrategy(Strategy):
               crossover(self.kijun_sen, self.tenkan_sen) and
               len(self.data) > self.displacement and
               self.data.Close[-self.displacement] > self.chikou_span[-1]):
-            self.sell(size=position_size)
+            self.sell()
             
         # Conditions for closing a short trade
         elif (self.position.is_short and 

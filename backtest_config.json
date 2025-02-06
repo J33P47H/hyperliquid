@@ -33,16 +33,20 @@
             "optimize": true
         },
         "DynamicRetest": {
-            "enabled": true,
+            "enabled": false,
             "optimize": true
         },
         "EmaVolumeSync": {
             "enabled": false,
             "optimize": true
+        },
+        "TrendLine": {
+            "enabled": true,
+            "optimize": true
         }
     },
     "data_sources": {
-        "SOL_1h": "data/ohlcv/ohlcv_data_1h_SOLUSDT.csv"
+        "XRP_1h": "data/ohlcv/ohlcv_data_1h_XRPUSDT.csv"
     },
     "backtest_settings": {
         "initial_capital": 1000000,

@@ -9,20 +9,10 @@ class DynamicRetestStrategy(Strategy):
     """
     
     # Define parameters as class variables first
-    risk_reward = 25      # Effective risk/reward ratio = risk_reward/10 (default 25 -> 2.5:1)
-    risk_percent = 1      # Effective risk per trade = risk_percent/100 (default 1 -> 1%)
     consolidation_span = 3  # Number of bars for zone determination
     
     # Parameter configuration for optimization
     param_config = {
-        "risk_reward": {
-            "default": 25,
-            "range": list(range(25, 31))  # 2.5:1 to 3.0:1
-        },
-        "risk_percent": {
-            "default": 1,
-            "range": [1, 2]  # 1% to 2%
-        },
         "consolidation_span": {
             "default": 3,
             "range": list(range(2, 6))  # 2 to 5 bars
@@ -64,10 +54,6 @@ class DynamicRetestStrategy(Strategy):
         if len(self.data) < max(self.consolidation_span, 20):
             return
 
-        # Convert parameters to effective values
-        eff_risk_reward = self.risk_reward / 10.0  # e.g., 25 becomes 2.5:1
-        eff_risk_percent = self.risk_percent / 100.0  # e.g., 1 becomes 1%
-
         # Get current prices and zone levels
         price = self.data.Close[-1]
         curr_zone_top = self.zone_top[-1]
@@ -95,32 +81,16 @@ class DynamicRetestStrategy(Strategy):
             # Long setup in uptrend
             if trend == 'up' and self.data.Close[-1] > self.data.Open[-1]:
                 if curr_zone_bottom <= price <= curr_zone_top:
-                    stop_loss = curr_zone_bottom * 0.99  # 1% below zone bottom
-                    risk_per_unit = price - stop_loss
-                    
-                    if risk_per_unit > 0:
-                        risk_amount = self.equity * eff_risk_percent
-                        position_size = int(risk_amount / risk_per_unit)
-                        if position_size > 0:
-                            target = price + (risk_per_unit * eff_risk_reward)
-                            # Validate target price
-                            if 0 < target < float('inf'):
-                                self.buy(size=position_size, sl=stop_loss, tp=target)
+                    self.buy()
 
             # Short setup in downtrend
             elif trend == 'down' and self.data.Close[-1] < self.data.Open[-1]:
                 if curr_zone_bottom <= price <= curr_zone_top:
-                    stop_loss = curr_zone_top * 1.01  # 1% above zone top
-                    risk_per_unit = stop_loss - price
-                    
-                    if risk_per_unit > 0:
-                        risk_amount = self.equity * eff_risk_percent
-                        position_size = int(risk_amount / risk_per_unit)
-                        if position_size > 0:
-                            target = price - (risk_per_unit * eff_risk_reward)
-                            # Validate target price
-                            if 0 < target < float('inf'):
-                                self.sell(size=position_size, sl=stop_loss, tp=target)
+                    self.sell()
 
-        # Exit Logic - using stop loss and take profit only
-        # No additional exit conditions needed as we're using strict SL/TP 
+        # Exit Logic - using trend reversal
+        elif self.position:
+            if self.position.is_long and trend == 'down':
+                self.position.close()
+            elif self.position.is_short and trend == 'up':
+                self.position.close() 

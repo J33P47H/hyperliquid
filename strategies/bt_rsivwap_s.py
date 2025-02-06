@@ -34,6 +34,22 @@ class RsiVwapStrategy(Strategy):
     overbought_threshold = 60
     risk_factor = 0.02
     
+    # Parameter configuration for optimization
+    param_config = {
+        "rsi_period": {
+            "default": 8,
+            "range": [6, 8, 10, 12, 14]
+        },
+        "oversold_threshold": {
+            "default": 40,
+            "range": [30, 35, 40, 45]
+        },
+        "overbought_threshold": {
+            "default": 60,
+            "range": [55, 60, 65, 70]
+        }
+    }
+    
     def init(self):
         # Set instance parameters from class parameters or defaults
         self.rsi_period = getattr(self, 'rsi_period', 8)
@@ -60,26 +76,19 @@ class RsiVwapStrategy(Strategy):
         )
 
     def next(self):
-        # Calculate position size based on risk
-        current_price = self.data.Close[-1]
-        risk_amount = self.equity * self.risk_factor
-        position_size = risk_amount / current_price
-        # Round to whole number of units and ensure minimum size
-        position_size = max(1, round(position_size))
-
         # Long entry: RSI crosses above oversold and price crosses above VWAP
         if (not self.position and 
             self.rsi[-2] < self.oversold_threshold and 
             self.rsi[-1] >= self.oversold_threshold and 
             crossover(self.data.Close, self.vwap)):
-            self.buy(size=position_size)
+            self.buy()
 
         # Short entry: RSI crosses below overbought and price crosses below VWAP
         elif (not self.position and 
               self.rsi[-2] > self.overbought_threshold and 
               self.rsi[-1] <= self.overbought_threshold and 
               crossover(self.vwap, self.data.Close)):
-            self.sell(size=position_size)
+            self.sell()
 
         # Exit long position
         elif self.position.is_long:

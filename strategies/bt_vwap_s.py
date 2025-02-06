@@ -12,6 +12,22 @@ class VWAPStrategy(Strategy):
     num_bins = 15  # Number of execution bins
     trade_threshold = 0.02  # Trade signal threshold
 
+    # Parameter configuration for optimization
+    param_config = {
+        "window": {
+            "default": 10,
+            "range": [5, 10, 15, 20]
+        },
+        "ma_period": {
+            "default": 5,
+            "range": [3, 5, 7, 9]
+        },
+        "trade_threshold": {
+            "default": 0.02,
+            "range": [0.01, 0.02, 0.03, 0.04]
+        }
+    }
+
     def init(self):
         # Set instance parameters from class parameters or defaults
         self.window = getattr(self, 'window', 10)
@@ -42,13 +58,6 @@ class VWAPStrategy(Strategy):
         self.relative_volume = self.I(lambda: calculate_relative_volume(self.data.Volume, self.window))
 
     def next(self):
-        # Calculate position size based on risk
-        current_price = self.data.Close[-1]
-        risk_amount = self.equity * self.risk_factor
-        position_size = risk_amount / current_price
-        # Round to whole number of units and ensure minimum size
-        position_size = max(1, round(position_size))
-
         # Price Momentum Check
         price_momentum = self.data.Close[-1] - self.short_ma[-1]
         
@@ -58,12 +67,12 @@ class VWAPStrategy(Strategy):
         # Buy when price is below VWAP with strong upward momentum and high volume
         if (self.data.Close[-1] < self.vwap[-1] - self.trade_threshold and 
             price_momentum > 0 and volume_confirmation):
-            self.buy(size=position_size)
+            self.buy()
 
         # Sell when price is above VWAP with strong downward momentum and high volume
         elif (self.data.Close[-1] > self.vwap[-1] + self.trade_threshold and 
               price_momentum < 0 and volume_confirmation):
-            self.sell(size=position_size)
+            self.sell()
 
         # Exit conditions
         for trade in self.trades:

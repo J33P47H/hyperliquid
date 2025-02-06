@@ -12,8 +12,6 @@ class EmaVolumeSyncStrategy(Strategy):
     # Define parameters as class variables first
     ema_period = 20
     volume_ma_period = 20
-    risk_per_trade = 0.01
-    risk_reward_ratio = 2
     
     # Parameter configuration for optimization
     param_config = {
@@ -24,14 +22,6 @@ class EmaVolumeSyncStrategy(Strategy):
         "volume_ma_period": {
             "default": 20,
             "range": [10, 15, 20, 25, 30]
-        },
-        "risk_per_trade": {
-            "default": 0.01,
-            "range": [0.005, 0.01, 0.015, 0.02]
-        },
-        "risk_reward_ratio": {
-            "default": 2,
-            "range": [1.5, 2.0, 2.5, 3.0]
         }
     }
 
@@ -82,39 +72,15 @@ class EmaVolumeSyncStrategy(Strategy):
 
         # Entry logic for long trades
         if not self.position and is_uptrend and volume_confirmation:
-            # Calculate position size based on risk
-            stop_loss = price * 0.98  # 2% below entry
-            risk_per_unit = price - stop_loss
-            
-            if risk_per_unit > 0:
-                risk_amount = self.equity * self.risk_per_trade
-                position_size = risk_amount / risk_per_unit
-                position_size = max(1, round(position_size))
-
-                # Calculate take profit based on risk-reward ratio
-                take_profit = price + (risk_per_unit * self.risk_reward_ratio)
-                
-                # Validate target price
-                if 0 < take_profit < float('inf'):
-                    self.buy(size=position_size, sl=stop_loss, tp=take_profit)
+            self.buy()
 
         # Entry logic for short trades
         elif not self.position and is_downtrend and volume_confirmation:
-            # Calculate position size based on risk
-            stop_loss = price * 1.02  # 2% above entry
-            risk_per_unit = stop_loss - price
-            
-            if risk_per_unit > 0:
-                risk_amount = self.equity * self.risk_per_trade
-                position_size = risk_amount / risk_per_unit
-                position_size = max(1, round(position_size))
+            self.sell()
 
-                # Calculate take profit based on risk-reward ratio
-                take_profit = price - (risk_per_unit * self.risk_reward_ratio)
-                
-                # Validate target price
-                if 0 < take_profit < float('inf'):
-                    self.sell(size=position_size, sl=stop_loss, tp=take_profit)
-
-        # Exit logic - using stop loss and take profit only
-        # No additional exit conditions needed as we're using strict SL/TP 
+        # Exit logic - using trend reversal
+        elif self.position:
+            if self.position.is_long and is_downtrend:
+                self.position.close()
+            elif self.position.is_short and is_uptrend:
+                self.position.close() 

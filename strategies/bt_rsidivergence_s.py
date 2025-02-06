@@ -100,16 +100,44 @@ class RSIDivergenceStrategy(Strategy):
     RSI Divergence Strategy:
       - Long entry: Bullish divergence detected and RSI is in oversold territory.
       - Short entry: Bearish divergence detected and RSI is in overbought territory.
-    Position sizing is based on an ATR-derived stop-loss.
+    Position sizing is removed; orders are executed with the default trade size.
     """
+
     # Strategy parameters (adjustable via JSON config)
     rsi_period = 14
     rsi_overbought = 70
     rsi_oversold = 30
     divergence_window = 5
-    risk_per_trade = 0.02   # 2% of equity risked per trade
     atr_period = 14
     atr_multiplier = 2.0
+
+    # Parameter configuration for optimization
+    param_config = {
+        "rsi_period": {
+            "default": 14,
+            "range": [10, 14, 20, 25]
+        },
+        "rsi_overbought": {
+            "default": 70,
+            "range": [65, 70, 75, 80]
+        },
+        "rsi_oversold": {
+            "default": 30,
+            "range": [20, 25, 30, 35]
+        },
+        "divergence_window": {
+            "default": 5,
+            "range": [3, 5, 7]
+        },
+        "atr_period": {
+            "default": 14,
+            "range": [10, 14, 20, 25]
+        },
+        "atr_multiplier": {
+            "default": 2.0,
+            "range": [1.5, 2.0, 2.5, 3.0]
+        }
+    }
 
     def init(self):
         # Calculate RSI using our custom implementation.
@@ -120,31 +148,24 @@ class RSIDivergenceStrategy(Strategy):
         self.bullish_div, self.bearish_div = self.I(lambda: find_divergences(self.data.Close, self.rsi, window=self.divergence_window))
     
     def next(self):
-        # Ensure we have valid values.
+        # Ensure we have valid indicator values.
         if np.isnan(self.rsi[-1]) or np.isnan(self.atr[-1]):
             return
 
         atr_val = self.atr[-1]
-        equity = self.equity
-        risk_amount = equity * self.risk_per_trade
+        entry_price = self.data.Close[-1]
 
         # Long Entry: Bullish divergence and RSI in oversold territory.
         if not self.position and self.bullish_div[-1] and self.rsi[-1] < self.rsi_oversold:
-            entry_price = self.data.Close[-1]
             stop_loss = entry_price - (atr_val * self.atr_multiplier)
             take_profit = entry_price + (atr_val * self.atr_multiplier * 1.5)
-            risk_per_unit = abs(entry_price - stop_loss)
-            position_size = max(int(risk_amount / risk_per_unit), 1)
-            self.buy(size=position_size, sl=stop_loss, tp=take_profit)
+            self.buy(sl=stop_loss, tp=take_profit)
 
         # Short Entry: Bearish divergence and RSI in overbought territory.
         elif not self.position and self.bearish_div[-1] and self.rsi[-1] > self.rsi_overbought:
-            entry_price = self.data.Close[-1]
             stop_loss = entry_price + (atr_val * self.atr_multiplier)
             take_profit = entry_price - (atr_val * self.atr_multiplier * 1.5)
-            risk_per_unit = abs(stop_loss - entry_price)
-            position_size = max(int(risk_amount / risk_per_unit), 1)
-            self.sell(size=position_size, sl=stop_loss, tp=take_profit)
+            self.sell(sl=stop_loss, tp=take_profit)
 
 # Ensure the class is exported.
 __all__ = ['RSIDivergenceStrategy']

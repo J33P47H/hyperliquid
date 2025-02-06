@@ -116,16 +116,10 @@ class StoicReversalStrategy(Strategy):
         # Entry Logic: Look for oversold conditions
         if not self.position:
             if self.stoch_k[-1] < self.stoch_oversold:
-                # Calculate risk-based position sizing
+                # Calculate stop loss and take profit levels
                 stop_loss_price = price * (1 - self.stop_loss_pct)
                 take_profit_price = price * (1 + self.risk_reward_ratio * self.stop_loss_pct)
-                risk_amount = self.equity * self.risk_pct
-                risk_per_unit = price - stop_loss_price
-                
-                if risk_per_unit > 0:
-                    position_size = risk_amount / risk_per_unit
-                    position_size = max(1, round(position_size))
-                    self.buy(size=position_size, sl=stop_loss_price, tp=take_profit_price)
+                self.buy(sl=stop_loss_price, tp=take_profit_price)
 
         # Exit Logic: Look for overbought conditions plus a %K/%D crossover
         elif self.position:
