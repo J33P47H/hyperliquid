@@ -47,16 +47,36 @@
         "HawkesPro": {
             "enabled": true,
             "optimize": true
+        },
+        "LowVolRip": {
+            "enabled": false,
+            "optimize": true
+        },
+        "Ichimoku1h": {
+            "enabled": false,
+            "optimize": true
+        },  
+        "Ichimoku1m": {
+            "enabled": false,
+            "optimize": true
+        },
+        "Quickp": {
+            "enabled": false,
+            "optimize": true
+        },
+        "Quick": {
+            "enabled": false,
+            "optimize": true
         }
     },
     "data_sources": {
-        "XRP_1h": "data/ohlcv/ohlcv_data_1h_XRPUSDT.csv"
+        "FTM_1m": "data/ohlcv/ohlcv_data_1m_FTMUSDT.csv"
     },
     "backtest_settings": {
         "initial_capital": 1000000,
-        "commission": 0.001,
-        "plot_results": false,
+        "commission": 0.002,
+        "plot_results": true,
         "optimization_metric": "Equity Final [$]",
-        "max_combinations": 100
+        "max_combinations": 300
     }
 }

@@ -2,11 +2,16 @@ import pandas as pd
 import requests
 from datetime import datetime
 import time
+import os
+from pathlib import Path
 
 class BinanceFuturesDataFetcher:
     def __init__(self):
         self.base_url = "https://fapi.binance.com"
         self.klines_endpoint = "/fapi/v1/klines"
+        # Get the absolute path to the project root
+        self.project_root = Path(__file__).parent.parent.parent
+        self.data_dir = self.project_root / "data" / "ohlcv"
         
     def get_klines(self, symbol, interval, start_time=None, end_time=None, limit=1000):
         """
@@ -133,20 +138,24 @@ class BinanceFuturesDataFetcher:
         results = {}
         total_symbols = len(symbols)
         
+        # Ensure data directory exists
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        print(f"\nSaving data files to: {self.data_dir.absolute()}")
+        
         for i, symbol in enumerate(symbols, 1):
             try:
                 print(f"\nFetching data for {symbol} ({i}/{total_symbols})")
                 df = self.fetch_historical_data(symbol, interval, start_time, end_time)
                 
                 if not df.empty:
-                    # Save to CSV
-                    output_filename = f"data/ohlcv/ohlcv_data_{interval}_{symbol}.csv"
+                    # Save to CSV using absolute path
+                    output_filename = self.data_dir / f"ohlcv_data_{interval}_{symbol}.csv"
                     # Reset index to make timestamp a column and format it properly
                     df_to_save = df.reset_index()
                     # Rename columns to lowercase for consistency
                     df_to_save.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
                     df_to_save.to_csv(output_filename, index=False)
-                    print(f"Data saved to {output_filename}")
+                    print(f"Data saved to: {output_filename.absolute()}")
                     print(f"Shape of data: {df.shape}")
                     
                     results[symbol] = df
@@ -168,16 +177,12 @@ if __name__ == "__main__":
     fetcher = BinanceFuturesDataFetcher()
     
     # Example parameters
-    symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]  # Add your symbols here
-    interval = "1h"
-    start_time = "2025-01-01 00:00:00"
+    symbols = ["FTMUSDT"]  # Add your symbols here
+    interval = "1m"
+    start_time = "2024-01-01 00:00:00"
     end_time = datetime.now()
     
     try:
-        # Create data directory if it doesn't exist
-        from pathlib import Path
-        Path("data/ohlcv").mkdir(parents=True, exist_ok=True)
-        
         # Fetch data for all symbols
         results = fetcher.fetch_multiple_symbols(symbols, interval, start_time, end_time)
         
