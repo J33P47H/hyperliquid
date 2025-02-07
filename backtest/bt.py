@@ -8,6 +8,7 @@ import sys
 import itertools
 from typing import Dict, List, Any
 import uuid
+import numpy as np
 
 # === RICH IMPORTS ===
 from rich.console import Console
@@ -25,27 +26,79 @@ DATA_DIR = Path("data/ohlcv")
 RESULTS_DIR = Path("data/results")
 LOG_DIR = Path("data/logs")
 
+# Add strategies directory to Python path if it exists
+if STRATEGIES_DIR.exists():
+    sys.path.append(str(STRATEGIES_DIR.absolute()))
+
 # Create directories
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+def generate_parameter_combinations(param_config, max_combinations: int = 100) -> List[Dict[str, Any]]:
+    """
+    Generate parameter combinations from start/end/step configuration.
+    Ensures the default combination is always included.
+    
+    Parameters:
+    -----------
+    param_config : dict
+        Dictionary containing parameter configurations with start/end/step values
+    max_combinations : int
+        Maximum number of combinations to generate
+    
+    Returns:
+    --------
+    list
+        List of parameter combinations
+    """
+    console.log("[bold cyan]🔧 Generating parameter combinations...[/bold cyan]")
+    param_ranges = {}
+    default_params = {}
+    
+    for param_name, param_info in param_config.items():
+        if isinstance(param_info, dict):
+            if all(key in param_info for key in ['start', 'end', 'step']):
+                # Generate range using np.arange for more precise step control
+                param_ranges[param_name] = list(np.arange(
+                    param_info['start'],
+                    param_info['end'] + param_info['step'],  # Include end value
+                    param_info['step']
+                ))
+            if 'default' in param_info:
+                default_params[param_name] = param_info['default']
+    
+    if not param_ranges:
+        console.log("[bold yellow]No param ranges found; returning default params only.[/bold yellow]")
+        return [default_params] if default_params else []
+    
+    # Generate all combinations
+    keys = list(param_ranges.keys())
+    values = [param_ranges[key] for key in keys]
+    all_combinations = [dict(zip(keys, combo)) for combo in itertools.product(*values)]
+    
+    # Ensure default combination is included
+    if default_params and default_params not in all_combinations:
+        all_combinations.append(default_params)
+    
+    # Sample if too many combinations
+    if len(all_combinations) > max_combinations:
+        import random
+        random.seed(42)
+        sampled = random.sample(all_combinations, max_combinations - 1)
+        if default_params not in sampled:
+            sampled.append(default_params)
+        all_combinations = sampled
+        console.log(
+            f"[bold yellow]⚠️ Truncated parameter combinations to {max_combinations}[/bold yellow]"
+        )
+    
+    console.log(
+        f"[green]🎉 Total parameter combos generated:[/green] {len(all_combinations)}"
+    )
+    return all_combinations
 
 def log_trades(trades_df: pd.DataFrame, stats: dict, strategy_name: str, symbol: str, run_id: str, timeframe: str):
     """
     Log top 10 best and worst trades to a CSV file.
-    
-    Parameters:
-    -----------
-    trades_df : pd.DataFrame
-        DataFrame containing trade information
-    stats : dict
-        Statistics from the backtest run
-    strategy_name : str
-        Name of the strategy
-    symbol : str
-        Trading symbol
-    run_id : str
-        Unique identifier for the backtest run
-    timeframe : str
-        Timeframe of the data
     """
     timestamp = datetime.now().strftime('%Y%m%d')
     original_filename = f"{strategy_name}_{symbol}_{timeframe}_{timestamp}"
@@ -112,30 +165,6 @@ def log_trades(trades_df: pd.DataFrame, stats: dict, strategy_name: str, symbol:
     selected_trades.to_csv(filepath, index=False)
     return filename
 
-def log_backtest_run(run_data: dict, log_file: str = "backtest_detailed_log.csv"):
-    """
-    Log detailed information about each backtest run to a CSV file.
-    
-    Parameters:
-    -----------
-    run_data : dict
-        Dictionary containing run information
-    log_file : str
-        Name of the log file
-    """
-    log_path = LOG_DIR / log_file
-    run_df = pd.DataFrame([run_data])
-    
-    if log_path.exists():
-        run_df.to_csv(log_path, mode='a', header=False, index=False)
-    else:
-        run_df.to_csv(log_path, index=False)
-
-# Add strategies directory to Python path if it exists
-if STRATEGIES_DIR.exists():
-    sys.path.append(str(STRATEGIES_DIR.absolute()))
-
-
 def load_data(csv_path):
     """
     Loads intraday trading data from CSV with proper timestamp parsing.
@@ -165,76 +194,9 @@ def load_data(csv_path):
     console.log(f"✅ DataFrame shape: [bold yellow]{df.shape}[/bold yellow]")
     return df
 
-
-def generate_parameter_combinations(param_config, max_combinations: int = 100) -> List[Dict[str, Any]]:
-    """
-    Generate all possible parameter combinations from the strategy class's param_config.
-    Ensures the default combination is always included, and limits to max_combinations if too large.
-    """
-    console.log("[bold cyan]🔧 Generating parameter combinations...[/bold cyan]")
-    param_ranges = {}
-    default_params = {}
-    
-    for param_name, param_info in param_config.items():
-        if isinstance(param_info, dict):
-            if 'range' in param_info:
-                param_ranges[param_name] = param_info['range']
-            if 'default' in param_info:
-                default_params[param_name] = param_info['default']
-    
-    if not param_ranges:
-        console.log("[bold yellow]No param ranges found; returning default params only.[/bold yellow]")
-        return [default_params] if default_params else []
-    
-    from itertools import product
-    keys = list(param_ranges.keys())
-    values = [param_ranges[key] for key in keys]
-    all_combinations = [dict(zip(keys, combo)) for combo in product(*values)]
-    
-    if default_params not in all_combinations:
-        all_combinations.append(default_params)
-    
-    if len(all_combinations) > max_combinations:
-        import random
-        random.seed(42)
-        sampled = random.sample(all_combinations, max_combinations - 1)
-        if default_params not in sampled:
-            sampled.append(default_params)
-        all_combinations = sampled
-        console.log(
-            f"[bold yellow]⚠️ Truncated parameter combinations to {max_combinations}[/bold yellow]"
-        )
-    
-    console.log(
-        f"[green]🎉 Total parameter combos generated:[/green] {len(all_combinations)}"
-    )
-    return all_combinations
-
-
 def run_strategy_backtest(df, symbol, strategy_class, strategy_params=None, cash=10_000, commission=0.001, save_trades=True, is_optimization=False, timeframe=''):
     """
-    Run a backtest for a single strategy with optional parameters, returning (stats, backtest_instance).
-    
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        Price data
-    symbol : str
-        Trading symbol
-    strategy_class : class
-        Strategy class to test
-    strategy_params : dict, optional
-        Strategy parameters
-    cash : float, optional
-        Initial cash
-    commission : float, optional
-        Commission rate
-    save_trades : bool, optional
-        Whether to save trade logs (default: True)
-    is_optimization : bool, optional
-        Whether this run is part of optimization (suppresses output)
-    timeframe : str, optional
-        Timeframe of the data
+    Run a backtest for a single strategy with optional parameters.
     """
     try:
         # Copy data to avoid modifications
@@ -275,7 +237,6 @@ def run_strategy_backtest(df, symbol, strategy_class, strategy_params=None, cash
         console.print(f"[bold red]❌ Error during backtest:[/bold red] {str(e)}")
         raise e
 
-
 def calculate_buy_and_hold(df):
     """
     Calculate a simple Buy & Hold return from the first to the last 'Close' in the dataset.
@@ -284,8 +245,7 @@ def calculate_buy_and_hold(df):
     last_price = df['Close'].iloc[-1]
     return ((last_price - first_price) / first_price) * 100
 
-
-def save_results(stats, strategy_name, symbol, timeframe, params=None, output_dir=RESULTS_DIR):
+def save_results(stats, strategy_name, symbol, timeframe, params=None, output_dir=LOG_DIR):
     """
     Save backtest results to a CSV (backtest_summary.csv).
     Creates or updates the CSV file with transposed data.
@@ -296,11 +256,6 @@ def save_results(stats, strategy_name, symbol, timeframe, params=None, output_di
     try:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        
-        num_trades = stats['# Trades']
-        commission_rate = 0.001  
-        avg_trade_size = stats['Equity Final [$]'] / (num_trades if num_trades > 0 else 1)
-        total_commissions = num_trades * avg_trade_size * commission_rate if num_trades > 0 else 0
         
         # Create index (row names) in the desired order
         index_order = [
@@ -394,11 +349,9 @@ def save_results(stats, strategy_name, symbol, timeframe, params=None, output_di
         console.print(f"[bold red]❌ Error saving results:[/bold red] {str(e)}")
         return None
 
-
 def load_strategy(strategy_name):
     """
-    Dynamically load strategy class from a file named bt_<lowercase name>_s.py,
-    expecting a class <Name>Strategy inside.
+    Dynamically load strategy class from a file named bt_<lowercase name>_s.py.
     """
     try:
         module_name = f"bt_{strategy_name.lower()}_s"
@@ -410,11 +363,9 @@ def load_strategy(strategy_name):
         console.print(f"[bold red]❌ Error loading strategy {strategy_name}:[/bold red] {str(e)}")
         return None
 
-
 def load_config(config_file='backtest_config.json'):
     """
-    Load configuration from a JSON file. 
-    Adjust data source paths to match the DATA_DIR structure.
+    Load configuration from a JSON file.
     """
     try:
         with open(config_file, 'r') as f:
@@ -429,23 +380,9 @@ def load_config(config_file='backtest_config.json'):
         console.print("[bold red]⚠️ Config file not found.[/bold red] Using default configuration.")
         return None
 
-
 def log_optimization_results(optimization_results: list, strategy_name: str, symbol: str, optimization_id: str, timeframe: str):
     """
     Log the best 5 optimization runs to a CSV file.
-    
-    Parameters:
-    -----------
-    optimization_results : list
-        List of dictionaries containing optimization results
-    strategy_name : str
-        Name of the strategy
-    symbol : str
-        Trading symbol
-    optimization_id : str
-        Unique identifier for the optimization run
-    timeframe : str
-        Timeframe of the data
     """
     timestamp = datetime.now().strftime('%Y%m%d')
     original_filename = f"{strategy_name}_{symbol}_{timeframe}_{timestamp}"
@@ -505,7 +442,6 @@ def log_optimization_results(optimization_results: list, strategy_name: str, sym
     except Exception as e:
         console.print(f"[bold red]Error saving optimization results:[/bold red] {str(e)}")
         return None
-
 
 def optimize_strategy(df, symbol, strategy_name, strategy_class, strategy_config, backtest_settings, timeframe=''):
     """
@@ -618,14 +554,9 @@ def optimize_strategy(df, symbol, strategy_name, strategy_class, strategy_config
         console.print(f"[bold red]❌ Error during optimization:[/bold red] {str(e)}")
         return None, None, float('-inf')
 
-
 def main():
     """
-    Main entry point: 
-    1) Load config, 
-    2) Create directories, 
-    3) Run each strategy (and optionally optimize), 
-    4) Save results.
+    Main entry point.
     """
     STRATEGIES_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -731,6 +662,5 @@ def main():
     
     console.rule("[bold green]🏁 All Done! 🏁[/bold green]")
 
-
 if __name__ == "__main__":
-    main()
+    main() 

@@ -45,7 +45,7 @@
             "optimize": true
         },
         "HawkesPro": {
-            "enabled": true,
+            "enabled": false,
             "optimize": true
         },
         "LowVolRip": {
@@ -59,6 +59,14 @@
         "Ichimoku1m": {
             "enabled": false,
             "optimize": true
+        },  
+        "Ichimokus": {
+            "enabled": false,
+            "optimize": true
+        },  
+        "Ichimokud": {
+            "enabled": true,
+            "optimize": true
         },
         "Quickp": {
             "enabled": false,
@@ -70,7 +78,13 @@
         }
     },
     "data_sources": {
-        "FTM_1m": "data/ohlcv/ohlcv_data_1m_FTMUSDT.csv"
+        "ADA_1h": "data/ohlcv/ohlcv_data_1h_ADAUSDT.csv",
+        "BANANA_1h": "data/ohlcv/ohlcv_data_1h_BANANAUSDT.csv",
+        "GAS_1h": "data/ohlcv/ohlcv_data_1h_GASUSDT.csv",
+        "LISTA_1h": "data/ohlcv/ohlcv_data_1h_LISTAUSDT.csv",
+        "LOOM_1h": "data/ohlcv/ohlcv_data_1h_LOOMUSDT.csv"
+
+
     },
     "backtest_settings": {
         "initial_capital": 1000000,
