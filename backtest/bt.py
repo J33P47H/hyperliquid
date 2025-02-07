@@ -299,10 +299,10 @@ def save_results(stats, strategy_name, symbol, timeframe, params=None, output_di
                 value = value.strftime('%Y-%m-%d %H:%M:%S')
             results_dict[key] = value
         
-        # Create DataFrame with single column
+        # Create DataFrame with single row
         now_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-        column_name = f"{strategy_name}_{symbol}_{timeframe}_{now_str}"
-        results_df = pd.DataFrame.from_dict({column_name: results_dict}, orient='columns')
+        run_name = f"{strategy_name}_{symbol}_{timeframe}_{now_str}"
+        results_df = pd.DataFrame([results_dict], index=[run_name])
         
         filename = output_dir / "backtest_summary.csv"
         
@@ -325,14 +325,13 @@ def save_results(stats, strategy_name, symbol, timeframe, params=None, output_di
                 existing_df = pd.read_csv(filename, index_col=0)
                 
                 # Remove older runs of the same strategy/symbol/timeframe
-                existing_cols = existing_df.columns
-                strategy_cols = [c for c in existing_cols if c.startswith(f"{strategy_name}_{symbol}_{timeframe}")]
-                if strategy_cols:
-                    existing_df = existing_df.drop(columns=strategy_cols)
+                existing_indices = existing_df.index
+                strategy_indices = [i for i in existing_indices if i.startswith(f"{strategy_name}_{symbol}_{timeframe}")]
+                if strategy_indices:
+                    existing_df = existing_df.drop(index=strategy_indices)
                 
                 # Combine with new results
-                combined_df = pd.concat([existing_df, results_df], axis=1)
-                combined_df = combined_df.reindex(index_order)  # Ensure correct row order
+                combined_df = pd.concat([existing_df, results_df])
                 combined_df.to_csv(filename)
                 console.print("🔄 [green]Updated existing file[/green]")
             except Exception as e:
@@ -340,7 +339,6 @@ def save_results(stats, strategy_name, symbol, timeframe, params=None, output_di
                 results_df.to_csv(filename)
                 console.print("[green]Created new file[/green]")
         else:
-            results_df = results_df.reindex(index_order)  # Ensure correct row order
             results_df.to_csv(filename)
             console.print("[green]Created new file[/green]")
         
