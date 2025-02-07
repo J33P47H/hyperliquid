@@ -276,7 +276,7 @@ def generate_parameter_combinations(param_config, max_combinations: int = 100) -
     return all_combinations
 
 
-def run_strategy_backtest(df, symbol, strategy_class, strategy_params=None, cash=10_000, commission=0.001, save_trades=True):
+def run_strategy_backtest(df, symbol, strategy_class, strategy_params=None, cash=10_000, commission=0.001, save_trades=True, is_optimization=False):
     """
     Run a backtest for a single strategy with optional parameters, returning (stats, backtest_instance).
     
@@ -296,6 +296,8 @@ def run_strategy_backtest(df, symbol, strategy_class, strategy_params=None, cash
         Commission rate
     save_trades : bool, optional
         Whether to save trade logs (default: True)
+    is_optimization : bool, optional
+        Whether this run is part of optimization (suppresses output)
     """
     run_id = str(uuid.uuid4())
     run_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -338,10 +340,11 @@ def run_strategy_backtest(df, symbol, strategy_class, strategy_params=None, cash
         
         bt = Backtest(df, strategy_instance, cash=cash, commission=commission)
         
-        console.log(
-            f"🏁[bold yellow]{symbol}  Running [bold white]{strategy_class.__name__}[/bold white] strategy "
-            f"with [bold cyan]{strategy_params}[/bold cyan]..."
-        )
+        if not is_optimization:
+            console.log(
+                f"🏁[bold yellow]{symbol}  Running [bold white]{strategy_class.__name__}[/bold white] strategy "
+                f"with [bold cyan]{strategy_params}[/bold cyan]..."
+            )
         
         if strategy_params and isinstance(strategy_params, dict):
             stats = bt.run(**strategy_params)
@@ -371,10 +374,11 @@ def run_strategy_backtest(df, symbol, strategy_class, strategy_params=None, cash
             'trades_file': trades_file
         })
         
-        console.log(
-            f"✅ [bold green]Backtest complete[/bold green]. "
-            f"# Trades: {stats['# Trades']}, Final Equity: {stats['Equity Final [$]']:.2f}"
-        )
+        if not is_optimization:
+            console.log(
+                f"✅ [bold green]Backtest complete[/bold green]. "
+                f"# Trades: {stats['# Trades']}, Final Equity: {stats['Equity Final [$]']:.2f}"
+            )
         
     except Exception as e:
         end_time = datetime.now()
@@ -581,7 +585,7 @@ def optimize_strategy(df, symbol, strategy_name, strategy_class, strategy_config
         optimization_metric = backtest_settings.get('optimization_metric', 'Sharpe Ratio')
         
         total_combos = len(param_combinations)
-        console.print(f"[bold yellow]Testing {total_combos} parameter combinations...[/bold yellow] 🤔\n")
+        console.print(f"[bold yellow]Testing {total_combos} parameter combinations...[/bold yellow]")
         
         # Calculate Buy & Hold return once
         buy_hold_return = calculate_buy_and_hold(df)
@@ -612,7 +616,8 @@ def optimize_strategy(df, symbol, strategy_name, strategy_class, strategy_config
                     combo,
                     cash=backtest_settings['initial_capital'],
                     commission=backtest_settings['commission'],
-                    save_trades=False  # Don't save trades during optimization
+                    save_trades=False,  # Don't save trades during optimization
+                    is_optimization=True
                 )
                 
                 if stats['# Trades'] == 0:
@@ -638,14 +643,20 @@ def optimize_strategy(df, symbol, strategy_name, strategy_class, strategy_config
                         'strategy': strategy_name,
                         'parameters': str(combo),
                         'status': 'new_best',
-                        'best_metric_value': best_metric_value
+                        'best_metric_value': best_metric_value,
+                        'trades': stats['# Trades'],
+                        'win_rate': stats['Win Rate [%]'],
+                        'return_pct': stats['Return [%]']
                     }
                     log_backtest_run(log_data, "optimization_log.csv")
                     
-                    console.log(f"🏆 [bright_white]New best[/bright_white] {optimization_metric}: [green]{best_metric_value:.4f}[/green] with {best_params}")
+                    # Print only when new best is found
+                    console.print(f"\n🏆 [bright_white]New best[/bright_white] {optimization_metric}: [green]{best_metric_value:.4f}[/green]")
+                    console.print(f"Parameters: [cyan]{best_params}[/cyan]")
+                    console.print(f"Trades: {stats['# Trades']}, Win Rate: {stats['Win Rate [%]']:.1f}%, Return: {stats['Return [%]']:.1f}%\n")
                     
             except Exception as e:
-                # Log failed parameter combination
+                # Log failed parameter combination but don't print unless it's a new type of error
                 log_data = {
                     'run_id': optimization_id,
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -656,7 +667,6 @@ def optimize_strategy(df, symbol, strategy_name, strategy_class, strategy_config
                     'error_message': str(e)
                 }
                 log_backtest_run(log_data, "optimization_log.csv")
-                console.print(f"[bold red]⚠️ Warning[/bold red]: Failed param combo {combo}: {str(e)}")
                 continue
         
         if best_stats is None:
@@ -682,10 +692,8 @@ def optimize_strategy(df, symbol, strategy_name, strategy_class, strategy_config
         log_backtest_run(log_data, "optimization_log.csv")
         
         console.print(f"\n[bold green]✅ Optimization completed![/bold green]")
-        console.print(
-            f"• Best [bold]{optimization_metric}[/bold]: [cyan]{best_metric_value:.4f}[/cyan]\n"
-            f"• Best parameters: [magenta]{best_params}[/magenta]"
-        )
+        console.print(f"Best {optimization_metric}: [cyan]{best_metric_value:.4f}[/cyan]")
+        
         return best_stats, best_params, best_metric_value
         
     except Exception as e:
